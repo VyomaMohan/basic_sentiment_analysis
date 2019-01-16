@@ -8,53 +8,38 @@ http://fjavieralba.com/basic-sentiment-analysis-with-python.html
 
 """
 
-from pprint import pprint
 import nltk
 import yaml
-import sys
-import os
-import re
+
+
 
 class Splitter(object):
-
     def __init__(self):
         self.nltk_splitter = nltk.data.load('tokenizers/punkt/english.pickle')
         self.nltk_tokenizer = nltk.tokenize.TreebankWordTokenizer()
-
     def split(self, text):
-        """
-        input format: a paragraph of text
-        output format: a list of lists of words.
-            e.g.: [['this', 'is', 'a', 'sentence'], ['this', 'is', 'another', 'one']]
-        """
+       
         sentences = self.nltk_splitter.tokenize(text)
         tokenized_sentences = [self.nltk_tokenizer.tokenize(sent) for sent in sentences]
         return tokenized_sentences
-
-
+    
 class POSTagger(object):
-
     def __init__(self):
         pass
         
     def pos_tag(self, sentences):
-        """
-        input format: list of lists of words
-            e.g.: [['this', 'is', 'a', 'sentence'], ['this', 'is', 'another', 'one']]
-        output format: list of lists of tagged tokens. Each tagged tokens has a
-        form, a lemma, and a list of tags
-            e.g: [[('this', 'this', ['DT']), ('is', 'be', ['VB']), ('a', 'a', ['DT']), ('sentence', 'sentence', ['NN'])],
-                    [('this', 'this', ['DT']), ('is', 'be', ['VB']), ('another', 'another', ['DT']), ('one', 'one', ['CARD'])]]
-        """
+        
 
         pos = [nltk.pos_tag(sentence) for sentence in sentences]
         #adapt format
         pos = [[(word, word, [postag]) for (word, postag) in sentence] for sentence in pos]
         return pos
 
-class DictionaryTagger(object):
 
+
+class DictionaryTagger(object):
     def __init__(self, dictionary_paths):
+        #count=0
         files = [open(path, 'r') for path in dictionary_paths]
         dictionaries = [yaml.load(dict_file) for dict_file in files]
         map(lambda x: x.close(), files)
@@ -66,6 +51,11 @@ class DictionaryTagger(object):
                     self.dictionary[key].extend(curr_dict[key])
                 else:
                     self.dictionary[key] = curr_dict[key]
+                    #count=count+1
+                    #print('Count is')
+                    #print(count)
+                    #print('Len of key ')
+                    #print(len(key))
                     self.max_key_size = max(self.max_key_size, len(key))
 
     def tag(self, postagged_sentences):
@@ -112,6 +102,10 @@ class DictionaryTagger(object):
                 i += 1
         return tag_sentence
 
+
+
+###print(dict_tagged_sentences)
+
 def value_of(sentiment):
     if sentiment == 'positive': return 1
     if sentiment == 'negative': return -1
@@ -126,40 +120,37 @@ def sentence_score(sentence_tokens, previous_token, acum_score):
         token_score = sum([value_of(tag) for tag in tags])
         if previous_token is not None:
             previous_tags = previous_token[2]
-            if 'inc' in previous_tags:
-                token_score *= 2.0
-            elif 'dec' in previous_tags:
-                token_score /= 2.0
-            elif 'inv' in previous_tags:
+            #if 'inc' in previous_tags:
+                #token_score *= 2.0
+            #elif 'dec' in previous_tags:
+                #token_score /= 2.0
+            if 'inv' in previous_tags:
                 token_score *= -1.0
         return sentence_score(sentence_tokens[1:], current_token, acum_score + token_score)
 
 def sentiment_score(review):
+    
     return sum([sentence_score(sentence, None, 0.0) for sentence in review])
 
-if __name__ == "__main__":
-    text = """What can I say about this place. The staff of the restaurant is 
-    nice and the eggplant is not bad. Apart from that, very uninspired food, 
-    lack of atmosphere and too expensive. I am a staunch vegetarian and was 
-    sorely dissapointed with the veggie options on the menu. Will be the last 
-    time I visit, I recommend others to avoid."""
 
-    splitter = Splitter()
-    postagger = POSTagger()
-    dicttagger = DictionaryTagger([ 'dicts/positive.yml', 'dicts/negative.yml', 
-                                    'dicts/inc.yml', 'dicts/dec.yml', 'dicts/inv.yml'])
+text = raw_input("Enter statement: ")
+splitter = Splitter()
+postagger = POSTagger()
+splitted_sentences = splitter.split(text)
+pos_tagged_sentences = postagger.pos_tag(splitted_sentences)
+dicttagger = DictionaryTagger([ 'dicts/pos6.yml', 'dicts/neg7.yml','dicts/invert.yml'])
+dict_tagged_sentences = dicttagger.tag(pos_tagged_sentences)
 
-    splitted_sentences = splitter.split(text)
-    pprint(splitted_sentences)
+def main():
+    
+    if(sentiment_score(dict_tagged_sentences)>0):
+        print("Statement is positive")
+    elif(sentiment_score(dict_tagged_sentences)<0):
+        print("Statement is negative")
+    else:
+        print("Statement is neutral")
+    return sentiment_score(dict_tagged_sentences)
 
-    pos_tagged_sentences = postagger.pos_tag(splitted_sentences)
-    pprint(pos_tagged_sentences)
-
-    dict_tagged_sentences = dicttagger.tag(pos_tagged_sentences)
-    pprint(dict_tagged_sentences)
-
-    print("analyzing sentiment...")
-    score = sentiment_score(dict_tagged_sentences)
-    print(score)
-
+if __name__== "__main__":
+    main()
 
